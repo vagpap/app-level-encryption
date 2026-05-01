@@ -1,0 +1,728 @@
+{
+  "info": {
+    "_postman_id": "c2c52b66-8d18-4d86-99f1-f8f4119baf01",
+    "name": "Application Level Encryption API",
+    "description": "Postman collection for exercising all REST endpoints of the running Application Level Encryption service.\n\nUsage:\n1. Start the application.\n2. Set the collection variable baseUrl if the service is not running on http://localhost:8080.\n3. Run the collection in order to create, fetch, update, search, rotate keys, and delete data while validating the response contract.\n4. The detail and search folders include both safe-default requests and opt-in requests that pass includeDecrypted=true.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.collectionVariables.get('baseUrl')) { pm.collectionVariables.set('baseUrl', 'http://localhost:8080'); }",
+          "if (!pm.collectionVariables.get('createdPublicInfo')) { pm.collectionVariables.set('createdPublicInfo', 'Postman public info'); }",
+          "if (!pm.collectionVariables.get('createdSecretInfo')) { pm.collectionVariables.set('createdSecretInfo', 'Postman secret info 123'); }",
+          "if (!pm.collectionVariables.get('updatedPublicInfo')) { pm.collectionVariables.set('updatedPublicInfo', 'Postman updated public info'); }",
+          "if (!pm.collectionVariables.get('updatedSecretInfo')) { pm.collectionVariables.set('updatedSecretInfo', 'Postman updated secret info 456'); }",
+          "if (!pm.collectionVariables.get('includeDecrypted')) { pm.collectionVariables.set('includeDecrypted', 'true'); }",
+          "if (!pm.collectionVariables.get('wildcardSearch')) { pm.collectionVariables.set('wildcardSearch', 'Postman%'); }",
+          "if (!pm.collectionVariables.get('missingRotationId')) { pm.collectionVariables.set('missingRotationId', 'rotation-not-found'); }",
+          "if (!pm.collectionVariables.get('kekReason')) { pm.collectionVariables.set('kekReason', 'Postman KEK rotation verification'); }",
+          "if (!pm.collectionVariables.get('bikReason')) { pm.collectionVariables.set('bikReason', 'Postman BIK rotation verification'); }"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "entityId",
+      "value": ""
+    },
+    {
+      "key": "kekRotationId",
+      "value": ""
+    },
+    {
+      "key": "bikRotationId",
+      "value": ""
+    },
+    {
+      "key": "createdPublicInfo",
+      "value": "Postman public info"
+    },
+    {
+      "key": "createdSecretInfo",
+      "value": "Postman secret info 123"
+    },
+    {
+      "key": "updatedPublicInfo",
+      "value": "Postman updated public info"
+    },
+    {
+      "key": "updatedSecretInfo",
+      "value": "Postman updated secret info 456"
+    },
+    {
+      "key": "includeDecrypted",
+      "value": "true"
+    },
+    {
+      "key": "wildcardSearch",
+      "value": "Postman%"
+    },
+    {
+      "key": "missingRotationId",
+      "value": "rotation-not-found"
+    },
+    {
+      "key": "kekReason",
+      "value": "Postman KEK rotation verification"
+    },
+    {
+      "key": "bikReason",
+      "value": "Postman BIK rotation verification"
+    }
+  ],
+  "item": [
+    {
+      "name": "Entity Lifecycle",
+      "item": [
+        {
+          "name": "List entities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Smoke test for the list endpoint and pagination envelope."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List returns 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('List response contains data and pagination', function () {",
+                  "  pm.expect(body).to.have.property('data');",
+                  "  pm.expect(body).to.have.property('pagination');",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "  pm.expect(body.pagination).to.have.property('page', 1);",
+                  "  pm.expect(body.pagination).to.have.property('pageSize', 20);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create entity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"publicInfo\": \"{{createdPublicInfo}}\",\n  \"secretInfo\": \"{{createdSecretInfo}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities"
+              ]
+            },
+            "description": "Creates a secured entity and stores the resulting entityId for subsequent requests."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Create returns 201', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "const entity = body.data;",
+                  "pm.collectionVariables.set('entityId', entity.id);",
+                  "pm.test('Create response contains the persisted entity', function () {",
+                  "  pm.expect(entity.id).to.be.a('string').and.not.empty;",
+                  "  pm.expect(entity.publicInfo).to.eql(pm.collectionVariables.get('createdPublicInfo'));",
+                  "  pm.expect(entity).to.not.have.property('decryptedSecretInfo');",
+                  "  pm.expect(entity.secretCipher).to.be.a('string').and.not.empty;",
+                  "  pm.expect(entity.secretDek).to.be.a('string').and.not.empty;",
+                  "  pm.expect(entity.secretBidx).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get entity by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities/{{entityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities",
+                "{{entityId}}"
+              ]
+            },
+            "description": "Fetches the entity created earlier and validates the response envelope."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get by id returns 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Fetched entity matches the created entity', function () {",
+                  "  pm.expect(body.data.id).to.eql(pm.collectionVariables.get('entityId'));",
+                  "  pm.expect(body.data.publicInfo).to.eql(pm.collectionVariables.get('createdPublicInfo'));",
+                  "  pm.expect(body.data).to.not.have.property('decryptedSecretInfo');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get entity by id with decrypted field",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities/{{entityId}}?includeDecrypted={{includeDecrypted}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities",
+                "{{entityId}}"
+              ],
+              "query": [
+                {
+                  "key": "includeDecrypted",
+                  "value": "{{includeDecrypted}}"
+                }
+              ]
+            },
+            "description": "Fetches the entity and requests plaintext projection by passing includeDecrypted=true."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get by id with decrypted field returns 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Fetched entity includes decryptedSecretInfo when requested', function () {",
+                  "  pm.expect(body.data.id).to.eql(pm.collectionVariables.get('entityId'));",
+                  "  pm.expect(body.data.publicInfo).to.eql(pm.collectionVariables.get('createdPublicInfo'));",
+                  "  pm.expect(body.data.decryptedSecretInfo).to.eql(pm.collectionVariables.get('createdSecretInfo'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update entity",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"publicInfo\": \"{{updatedPublicInfo}}\",\n  \"secretInfo\": \"{{updatedSecretInfo}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities/{{entityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities",
+                "{{entityId}}"
+              ]
+            },
+            "description": "Updates both public and secret data for the stored entity."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Update returns 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Updated entity reflects the new publicInfo', function () {",
+                  "  pm.expect(body.data.id).to.eql(pm.collectionVariables.get('entityId'));",
+                  "  pm.expect(body.data.publicInfo).to.eql(pm.collectionVariables.get('updatedPublicInfo'));",
+                  "  pm.expect(body.data).to.not.have.property('decryptedSecretInfo');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search exact match",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"secretInfo\": \"{{updatedSecretInfo}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities",
+                "search"
+              ]
+            },
+            "description": "Validates exact-match blind index search with the updated secret value."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Search returns 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "const entityId = pm.collectionVariables.get('entityId');",
+                  "pm.test('Search response includes the target entity', function () {",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "  pm.expect(body.data.some(item => item.id === entityId)).to.eql(true);",
+                  "  pm.expect(body.data.every(item => !Object.prototype.hasOwnProperty.call(item, 'decryptedSecretInfo'))).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search exact match with decrypted field",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"secretInfo\": \"{{updatedSecretInfo}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities/search?includeDecrypted={{includeDecrypted}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "includeDecrypted",
+                  "value": "{{includeDecrypted}}"
+                }
+              ]
+            },
+            "description": "Validates exact-match search while explicitly requesting plaintext projection in the response."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Search with decrypted field returns 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "const entityId = pm.collectionVariables.get('entityId');",
+                  "const match = body.data.find(item => item.id === entityId);",
+                  "pm.test('Search response includes plaintext when requested', function () {",
+                  "  pm.expect(match).to.not.eql(undefined);",
+                  "  pm.expect(match.decryptedSecretInfo).to.eql(pm.collectionVariables.get('updatedSecretInfo'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search wildcard rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"secretInfo\": \"{{wildcardSearch}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities/search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities",
+                "search"
+              ]
+            },
+            "description": "Validates that wildcard and non-exact search patterns are rejected consistently."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Wildcard search returns 400', function () { pm.response.to.have.status(400); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Wildcard search returns the unsupported query error contract', function () {",
+                  "  pm.expect(body.error.code).to.eql('UNSUPPORTED_QUERY');",
+                  "  pm.expect(body.error.message).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.error.details).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete entity",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities/{{entityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities",
+                "{{entityId}}"
+              ]
+            },
+            "description": "Deletes the entity created at the beginning of the run."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Delete returns 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted entity returns 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/entities/{{entityId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "entities",
+                "{{entityId}}"
+              ]
+            },
+            "description": "Confirms that the deleted entity can no longer be retrieved."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Deleted entity lookup returns 404', function () { pm.response.to.have.status(404); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Deleted entity lookup uses the not found error contract', function () {",
+                  "  pm.expect(body.error.code).to.eql('NOT_FOUND');",
+                  "  pm.expect(body.error.message).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Key Rotation",
+      "item": [
+        {
+          "name": "Rotate KEK",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"{{kekReason}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/keys/kek/rotate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "keys",
+                "kek",
+                "rotate"
+              ]
+            },
+            "description": "Triggers a KEK rotation and stores the rotationId for later retrieval."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rotate KEK returns 202', function () { pm.response.to.have.status(202); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('kekRotationId', body.data.rotationId);",
+                  "pm.test('Rotate KEK response contains a plan payload', function () {",
+                  "  pm.expect(body.data.rotationId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.data.keyType).to.eql('KEK');",
+                  "  pm.expect(body.data.status).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get KEK rotation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/keys/rotations/{{kekRotationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "keys",
+                "rotations",
+                "{{kekRotationId}}"
+              ]
+            },
+            "description": "Fetches the previously created KEK rotation plan."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get KEK rotation returns 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('KEK rotation plan matches the stored rotationId', function () {",
+                  "  pm.expect(body.data.rotationId).to.eql(pm.collectionVariables.get('kekRotationId'));",
+                  "  pm.expect(body.data.keyType).to.eql('KEK');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rotate BIK",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"{{bikReason}}\",\n  \"requireDryRun\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/keys/bik/rotate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "keys",
+                "bik",
+                "rotate"
+              ]
+            },
+            "description": "Triggers a BIK rotation and stores the rotationId for later retrieval."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rotate BIK returns 202', function () { pm.response.to.have.status(202); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('bikRotationId', body.data.rotationId);",
+                  "pm.test('Rotate BIK response contains a plan payload', function () {",
+                  "  pm.expect(body.data.rotationId).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.data.keyType).to.eql('BIK');",
+                  "  pm.expect(body.data.status).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get BIK rotation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/keys/rotations/{{bikRotationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "keys",
+                "rotations",
+                "{{bikRotationId}}"
+              ]
+            },
+            "description": "Fetches the previously created BIK rotation plan."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get BIK rotation returns 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('BIK rotation plan matches the stored rotationId', function () {",
+                  "  pm.expect(body.data.rotationId).to.eql(pm.collectionVariables.get('bikRotationId'));",
+                  "  pm.expect(body.data.keyType).to.eql('BIK');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get unknown rotation returns 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/admin/keys/rotations/{{missingRotationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "admin",
+                "keys",
+                "rotations",
+                "{{missingRotationId}}"
+              ]
+            },
+            "description": "Validates the 404 error contract for a non-existent rotation plan."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unknown rotation returns 404', function () { pm.response.to.have.status(404); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Unknown rotation uses the not found error contract', function () {",
+                  "  pm.expect(body.error.code).to.eql('NOT_FOUND');",
+                  "  pm.expect(body.error.message).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
