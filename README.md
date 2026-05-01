@@ -4,7 +4,7 @@ This repository contains a Spring Boot implementation for application-level fiel
 
 **IMPORTANT DISCLAIMER**: **NOT PRODUCTION GRADE**
 
-## Solution Summary
+## Summary
 
 The application protects sensitive fields before they are persisted by combining the following controls:
 
@@ -17,7 +17,7 @@ The application protects sensitive fields before they are persisted by combining
 ## Technology Stack
 
 - Java 21
-- Spring Boot 3.3.4
+- Spring Boot 3.5.x
 - Maven
 - PostgreSQL
 - HashiCorp Vault
@@ -28,14 +28,13 @@ The application protects sensitive fields before they are persisted by combining
 
 Key top-level paths:
 
-- `src/main/java/dev/wackydevelopers/encryption/`: application source code
-- `src/test/java/dev/wackydevelopers/encryption/`: unit, integration, and e2e tests
-- `db/`: database migration assets and validation scripts
+- `src/main/`: application source code
+- `src/test/`: unit, integration, and e2e tests
 - `vault/`: Vault bootstrap assets and validation scripts
 - `docs/`: runbooks and supporting documentation
 - `postman/`: Postman collection and environment files
 
-## Architecture Diagram
+## Architecture
 
 The following high-level view shows the main runtime components and trust boundaries:
 
@@ -59,7 +58,7 @@ The primary local workflow is documented in [docs/local-development-workflow.md]
 
 Typical prerequisites:
 
-- Docker with Compose plugin
+- Docker/podman with Compose plugin
 - Java 21 or later
 - Maven 3.9 or later
 
@@ -130,9 +129,11 @@ This repository currently emphasizes implementation and validation of:
 - Vault bootstrap and startup resilience behavior
 - key rotation workflows and contract validation
 
-The implementation **IS NOT PRODUCTION GRADE** but only a showcase. **DO NOT USE IN PRODUCTION** UNLESS REVIEWED AND VETTED
+The implementation **IS NOT PRODUCTION GRADE** but only a showcase. **DO NOT USE IN PRODUCTION** UNLESS REVIEWED AND VETTED.
 
 Other than that, enjoy your stay and *you can checkout any time you like...*.
 If this repo helps you in any chance, target achieved!
 
 Cheers, and remember, *the bards' songs will remain*.
+
+PS: Did I mention that this is **NOT BATTLE-TESTED & PRODUCTION READY**?

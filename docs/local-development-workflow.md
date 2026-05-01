@@ -6,37 +6,33 @@ This runbook defines the primary Docker-based local setup and the fallback workf
 
 ## Prerequisites
 
-Run prerequisite checks:
-
-```bash
-bash scripts/check-prerequisites.sh
-```
-
 Expected tools:
 
 - Docker with Compose plugin
 - Java 21+
 - Maven 3.9+
 
-Ensure scripts are executable:
-
-```bash
-chmod +x scripts/*.sh db/tests/*.sh vault/tests/*.sh tests/*.sh
-```
-
 ## Primary Workflow (Docker Compose)
 
 1. Start local stack and run Vault bootstrap:
 
 ```bash
-bash scripts/start-local.sh
+docker compose up -d postgres vault
 ```
 
-1. Confirm services:
+2. Confirm services:
 
 ```bash
 docker compose ps
 ```
+
+3. Initialise vault:
+
+```bash
+docker compose run --rm vault-init
+```
+
+Check logs to get the AppRole `role-id` and generated `secret-id`. These are necessary environment variables (`VAULT_ROLE_ID` & `VAULT_SECRET_ID`) for the application to start.
 
 1. Access endpoints:
 
@@ -51,36 +47,14 @@ Use fallback only when Docker Compose cannot be used in the current environment.
 1. Run API in in-memory mode:
 
 ```bash
-bash scripts/start-local-fallback.sh
+mvn -q -DskipTests -Dspring-boot.run.profiles=inmemory spring-boot:run
 ```
 
-1. Validate API health:
+2. Validate API health:
 
 ```bash
 curl http://localhost:8080/actuator/health
 ```
-
-## Troubleshooting
-
-1. Docker daemon not running:
-
-- Start Docker Desktop or daemon service.
-- Re-run `bash scripts/check-prerequisites.sh`.
-
-1. Vault init fails:
-
-- Check Vault container logs: docker compose logs vault
-- Re-run bootstrap: docker compose run --rm vault-init
-
-1. Port conflicts:
-
-- Check listeners on 5432/8200/8080 and free conflicting processes.
-- Override mapped ports in docker-compose.yml if needed.
-
-1. Fallback startup fails:
-
-- Verify Java and Maven paths.
-- Run `mvn -q test` first to ensure project compiles.
 
 ## Exit and Cleanup
 
